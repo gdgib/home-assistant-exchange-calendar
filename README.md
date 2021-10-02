@@ -48,6 +48,12 @@ pip3 install exchangelib --upgrade
 # also depend on exchangelib.
 ```
 
+For hassos/hass.io, you can use the [home-assistant/addons-development] add on to install exchangelib
+```
+pypi:
+  - exchangelib
+```
+
 ## Installation
 
 The [developers documentation] explains very well how to create a custom component. Here is a

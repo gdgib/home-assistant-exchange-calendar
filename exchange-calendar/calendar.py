@@ -60,7 +60,9 @@ def setup_platform(hass, config, add_entities, disc_info=None):
     password = config.get(CONF_PASSWORD)
 
     credentials = Credentials(username, password)
-    exconfig = Configuration(server=server, credentials=credentials, auth_type="NTLM")
+    exconfig = Configuration(service_endpoint=server # eg 'https://ews.mail.us-east-1.awsapps.com/EWS/Exchange.asmx',
+                             #server=server, 
+                             credentials=credentials, auth_type="basic")
     account = Account(username, config=exconfig, autodiscover=False, access_type=DELEGATE)
 
     calendar = account.calendar
@@ -77,7 +79,17 @@ def setup_platform(hass, config, add_entities, disc_info=None):
                 name, calendar, entity_id, True, cust_calendar[CONF_SEARCH]
             )
         )
-
+        
+    # Create a default calendar if there was no custom one
+    if not config[CONF_CALENDARS]:
+        name = calendar.name
+        device_id = calendar.name
+        entity_id = generate_entity_id(ENTITY_ID_FORMAT, device_id, hass=hass)
+        calendar_devices.append(
+             ExchangeCalendarEventDevice(
+                name, calendar, entity_id,
+             )
+        )
     add_entities(calendar_devices, True)
 
 
@@ -123,6 +135,7 @@ class ExchangeCalendarEventDevice(CalendarEventDevice):
         self._event = event
 
 from exchangelib import EWSDateTime
+import pytz
 
 class ExchangeCalendarData:
     """Class to utilize the calendar dav client object to get next event."""
@@ -137,10 +150,8 @@ class ExchangeCalendarData:
     async def async_get_events(self, hass, start_date, end_date):
         """Get all events in a specific time frame."""
         # Get event list from the current calendar
-        vevent_list = await hass.async_add_job(
-            # (start__lt=end, end__gt=start):
-            self.calendar.filter,
-            start__range=(start_date, end_date),
+        vevent_list = await hass.async_add_executor_job(
+            lambda:list(self.calendar.view(start=start_date, end=end_date))
         )
         event_list = []
         for vevent in vevent_list:
@@ -150,11 +161,11 @@ class ExchangeCalendarData:
 
             data = {
                 "uid": uid,
-                "title": vevent.subject,
+                "summary": vevent.subject,
                 "start": self.get_hass_date(vevent.start),
                 "end": self.get_hass_date(vevent.end),
                 "location": vevent.location,
-                "description": vevent.text_body,
+                "description": vevent.body,
             }
 
             data["start"] = get_date(data["start"]).isoformat()
@@ -169,11 +180,7 @@ class ExchangeCalendarData:
         """Get the latest data."""
         # We have to retrieve the results for the whole day as the server
         # won't return events that have already started
-        results = self.calendar.filter(
-            start__lt=EWSDateTime.from_datetime(dt.now()),
-            end__gt=EWSDateTime.from_datetime(dt.now()),
-            end__lt=EWSDateTime.from_datetime(dt.now()+ timedelta(days=15))
-        )
+        results = self.calendar.view(start=dt.now(), end=dt.now()+ timedelta(days=15))
 
         vevent = next(
             (
@@ -207,7 +214,7 @@ class ExchangeCalendarData:
             "start": self.get_hass_date(vevent.start),
             "end": self.get_hass_date(vevent.end),
             "location": vevent.location,
-            "description": vevent.text_body,
+            "description": vevent.body,
         }
         _LOGGER.info(self.event)
 
@@ -226,9 +233,9 @@ class ExchangeCalendarData:
             or hasattr(event, "location")
             and not event.location is None
             and pattern.match(event.location)
-            or hasattr(event, "text_body")
-            and not event.text_body is None
-            and pattern.match(event.text_body)
+            or hasattr(event, "body")
+            and not event.body is None
+            and pattern.match(event.body)
         )
 
     @staticmethod

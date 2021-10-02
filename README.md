@@ -48,7 +48,7 @@ pip3 install exchangelib --upgrade
 # also depend on exchangelib.
 ```
 
-For hassos/hass.io, you can use the https://github.com/home-assistant/addons-development addon to install exchangelib
+For Home Assistant OS installations, you can use the https://github.com/home-assistant/addons-development addon to install exchangelib
 ```
 pypi:
   - exchangelib

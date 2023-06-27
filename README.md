@@ -48,6 +48,12 @@ pip3 install exchangelib --upgrade
 # also depend on exchangelib.
 ```
 
+For Home Assistant OS installations, you can use the https://github.com/home-assistant/addons-development addon to install exchangelib
+```
+pypi:
+  - exchangelib
+```
+
 ## Installation
 
 The [developers documentation] explains very well how to create a custom component. Here is a

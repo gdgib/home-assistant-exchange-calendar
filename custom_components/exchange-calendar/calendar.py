@@ -148,19 +148,11 @@ class ExchangeCalendarData:
         self.offset = None
     
     def internal_get_events(self, start_date: EWSDateTime, end_date: EWSDateTime):
-        return self.calendar.filter(
+        vevent_list = self.calendar.filter(
             start__lt=EWSDateTime.from_datetime(start_date),
             end__gt=EWSDateTime.from_datetime(end_date),
             end__lt=EWSDateTime.from_datetime(end_date + timedelta(days=15)))
-    
-    async def async_get_events(self, hass: HomeAssistant, start_date: datetime, end_date: datetime):
-        """Get all events in a specific time frame."""
-        # Get event list from the current calendar
-        vevent_list = await hass.async_add_executor_job(
-            self.internal_get_events,
-            start_date,
-            end_date
-        )
+
         event_list = []
         for vevent in vevent_list:
             event_list.append(
@@ -174,6 +166,14 @@ class ExchangeCalendarData:
             )
 
         return event_list
+    
+    async def async_get_events(self, hass: HomeAssistant, start_date: datetime, end_date: datetime):
+        """Get all events in a specific time frame."""
+        # Get event list from the current calendar
+        return await hass.async_add_executor_job(
+            self.internal_get_events,
+            start_date,
+            end_date)
 
     @Throttle(MIN_TIME_BETWEEN_UPDATES)
     def update(self):
